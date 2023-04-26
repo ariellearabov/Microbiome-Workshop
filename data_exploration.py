@@ -11,7 +11,9 @@ def main():
     os.chdir("data")
     paths = os.listdir()
     dfs = upload_dfs(paths)
-    print(dfs[0][0])
+
+
+
     
 
 def get_data(url1, url2):
@@ -31,6 +33,13 @@ def upload_dfs(paths):
             dfs.append((pd.read_csv(path, sep=' ', header=0), path))
     return dfs
 
+def peek_at_data(dfs_list):
+    for elm in dfs_list:
+        print(f'no. of samples: %d, no. of {elm[1].split(".")[0]+"_cols"}: %d ' % elm[0].shape)
+
+
+def missing_data_exploration():
+    return 0
 
 if __name__ == "__main__":
     main()
