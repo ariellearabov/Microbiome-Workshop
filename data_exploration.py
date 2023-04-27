@@ -31,6 +31,7 @@ def upload_dfs(paths):
             dfs.append((pd.read_table(path, header=0), path))
         else:
             dfs.append((pd.read_csv(path, sep=' ', header=0), path))
+        dfs[i][0].set_index("SampleID", inplace=True)
     return dfs
 
 def peek_at_data(dfs_list):
