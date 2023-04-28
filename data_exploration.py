@@ -8,7 +8,7 @@ def main():
     meta = "https://drive.google.com/drive/folders/1YU84ZOk_BNGIOxNrATO_VhtLkHSlv-w3?usp=share_link"
     #get_data(omic, meta)  # doesn't work since python has no premission to acsess the folders so we downloaded them manually. 
     
-    #os.chdir("data")
+    os.chdir("data")
     paths = os.listdir()
     dfs = upload_dfs(paths)
     peek_at_data(dfs)
@@ -41,13 +41,16 @@ def peek_at_data(dfs_list):
 def missing_data_exploration(dfs_list):
     for elm in dfs_list:
         df = elm[0]
-        if (("metadata" in elm[1]) or ("kegg_names" in elm[1])):
+        if ("metadata" in elm[1]):
+            total_missing = df.isnull().sum().sum()
+        elif ("kegg_names" in elm[1]):
             continue
-        df[df == 0] = None 
-        total_missing = np.sum(np.isnan(df.values))
+        else:
+            df[df == 0] = None 
+            total_missing = np.sum(np.isnan(df.values))
         total_obs = np.prod(df.shape)
         print(f'In {elm[1].split(".")[0]}-')
-        print('toal missing values: %d out of toal observations: %d' % (total_missing, total_obs))
+        print('toal missing values: %d out of total observations: %d' % (total_missing, total_obs))
         print('so that\'s %.2f missing \n' % (total_missing/total_obs))
 
 if __name__ == "__main__":
