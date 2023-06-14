@@ -126,7 +126,7 @@ def step_4_model(metadata_df, reduced_omic_data_dict):
     # those 104 are the ones with the highest variance
 
     # converting patient group to binary values:
-    combined_data["PatientGroup"] = np.where(combined_data["PatientGroup"] == "1", 0, 1)
+    combined_data["PatientGroup"] = np.where(combined_data["PatientGroup"] == "8", 0, 1)
 
     # we would like to predict values for the feature 'Patient Group',
     # to do so we seperate it from the rest of the data:
