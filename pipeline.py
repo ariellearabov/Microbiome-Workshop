@@ -9,6 +9,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 
+
 # description:
 # section A - 5 functions for each step of the current pipeline
 # section B - helper functions for each step (the related step is mentioned above the first helper function)
@@ -376,7 +377,7 @@ if __name__ == "__main__":
     #############
     # take out of comment:
     #############
-    """
+    # """
     print("Root Mean Square Error - train data  ---->  " + str(RMSE_on_train))
     print("Root Mean Square Error - test data   ---->  " + str(RMSE_on_test))
     print("\n")
@@ -391,4 +392,4 @@ if __name__ == "__main__":
 
     # """
 
-# added line for test 
+# added line for test
