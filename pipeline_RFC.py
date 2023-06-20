@@ -348,40 +348,34 @@ def success_rate(results_df, threshold=0.5):
 # section C:
 #####################
 
-if __name__ == "__main__":
+def main():
     # step 0 - reading raw data:
     dfs_tuple = step_0("data")
     dfs_lst_0 = dfs_tuple[0]
     dfs_dict_0 = dfs_tuple[1]
-
     # step 1 - preprocessing:
     # df_step_1 --> 2 dataframes and a dictionary of dataframes: metadata df, kegg names df, omic data dictionary
     # in metadata and kegg names Nan values were NOT handled
     # in omic data (metabolomic data) Nan was replaced with 0, columns with only the value 0 were removed
     dfs_step_1 = step_1_preprocessing(dfs_lst_0, dfs_dict_0)
     metadata = dfs_step_1[0]
-    kegg_names = dfs_step_1[1]
+    # kegg_names = dfs_step_1[1]
     full_omic_data_dict = dfs_step_1[2]  # contains both metagenomic data (w/o functional data) and metabolomic data
-
     # step 2 - missing values imputation:
     # the imputation is only for the metadata
     # this is an intial imputation using the mean, needs to be improved using the taxonomical data
     metadata = step_2_missing_values_imputation(metadata)
-
     # step 3 - feature selection:
     reduced_omic_dfs_dict = step_3_feature_selection(full_omic_data_dict)
-
     # step 4 - choosing a model:
     RMSE_lst = step_4_model(metadata, reduced_omic_dfs_dict)
     RMSE_on_train = RMSE_lst[0]
     RMSE_on_test = RMSE_lst[1]
     prediction_train_df = RMSE_lst[2]
     prediction_test_df = RMSE_lst[3]
-
     # additional values for the predictions:
     success_rate_train = success_rate(prediction_train_df)
     success_rate_test = success_rate(prediction_test_df)
-
     #############
     # take out of comment:
     #############
@@ -397,7 +391,10 @@ if __name__ == "__main__":
     print("\n")
     print("The success rate for train data (threshold = 0.5)  ---->  " + str(success_rate_train))
     print("The success rate for test data (threshold = 0.5)  ---->  " + str(success_rate_test))
-
     # """
 
-# added line for test
+    return prediction_train_df, prediction_test_df
+
+
+if __name__ == "__main__":
+    main()

@@ -325,7 +325,7 @@ def create_results_df(y, proba_predictions):
 # section C:
 #####################
 
-if __name__ == "__main__":
+def main():
     # step 0 - reading raw data:
     dfs_tuple = step_0("data")
     dfs_lst_0 = dfs_tuple[0]
@@ -352,3 +352,9 @@ if __name__ == "__main__":
     predictions = step_4_model(metadata, reduced_omic_dfs_dict)
     prediction_train_df = predictions[0]
     prediction_test_df = predictions[1]
+
+    return prediction_train_df, prediction_test_df
+
+
+if __name__ == "__main__":
+    main()
