@@ -5,7 +5,6 @@ import random
 import numpy as np
 import pandas as pd
 
-from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
@@ -138,26 +137,20 @@ def step_4_model(metadata_df, reduced_omic_data_dict):
     train_x, test_x, train_y, test_y = train_test_split(train_X, train_Y, test_size=0.25, random_state=0)
 
     # create an object of the RandomForestRegressor
-    model_RFC = RandomForestClassifier(max_depth=10)
+    model_RFC = RandomForestClassifier()
 
     # fit the model with the training data
     model_RFC.fit(train_x, train_y)
 
     # predict the target on train and test data
-    predict_train = model_RFC.predict(train_x)
-    predict_test = model_RFC.predict(test_x)
     predict_prob_train = model_RFC.predict_proba(train_x)
     predict_prob_test = model_RFC.predict_proba(test_x)
-
-    # Root Mean Squared Error on train and test data
-    RMSE_on_train_data = mean_squared_error(train_y, predict_train) ** 0.5
-    RMSE_on_test_data = mean_squared_error(test_y, predict_test) ** 0.5
 
     # creating a df with the results
     predict_train_df = create_results_df(train_y, predict_prob_train)
     predict_test_df = create_results_df(test_y, predict_prob_test)
 
-    return RMSE_on_train_data, RMSE_on_test_data, predict_train_df, predict_test_df
+    return predict_train_df, predict_test_df
 
 
 #####################
@@ -328,22 +321,6 @@ def create_results_df(y, proba_predictions):
     return results_df
 
 
-# functions - section C
-def success_rate(results_df, threshold=0.5):
-    samples = results_df.index
-    success_sum = 0
-    samples_num = len(samples)
-    for sample in samples:
-        sample_is_sick = results_df.loc[sample, 'PatientGroup']
-        pred_for_sample = results_df.loc[sample, 'P(Patient Group = 1)']
-        if sample_is_sick == 1 and pred_for_sample > threshold:
-            success_sum += 1
-        elif sample_is_sick == 0 and pred_for_sample < threshold:
-            success_sum += 1
-    suc_rate = success_sum / samples_num
-    return suc_rate
-
-
 #####################
 # section C:
 #####################
@@ -372,32 +349,6 @@ if __name__ == "__main__":
     reduced_omic_dfs_dict = step_3_feature_selection(full_omic_data_dict)
 
     # step 4 - choosing a model:
-    RMSE_lst = step_4_model(metadata, reduced_omic_dfs_dict)
-    RMSE_on_train = RMSE_lst[0]
-    RMSE_on_test = RMSE_lst[1]
-    prediction_train_df = RMSE_lst[2]
-    prediction_test_df = RMSE_lst[3]
-
-    # additional values for the predictions:
-    success_rate_train = success_rate(prediction_train_df)
-    success_rate_test = success_rate(prediction_test_df)
-
-    #############
-    # take out of comment:
-    #############
-    # """
-    print("Root Mean Square Error - train data  ---->  " + str(RMSE_on_train))
-    print("Root Mean Square Error - test data   ---->  " + str(RMSE_on_test))
-    print("\n")
-    print("The probability for a patient to be sick: (train data)")
-    print(prediction_train_df)
-    print("\n")
-    print("The probability for a patient to be sick: (test data)")
-    print(prediction_test_df)
-    print("\n")
-    print("The success rate for train data (threshold = 0.5)  ---->  " + str(success_rate_train))
-    print("The success rate for test data (threshold = 0.5)  ---->  " + str(success_rate_test))
-
-    # """
-
-# added line for test
+    predictions = step_4_model(metadata, reduced_omic_dfs_dict)
+    prediction_train_df = predictions[0]
+    prediction_test_df = predictions[1]
