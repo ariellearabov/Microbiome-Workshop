@@ -297,19 +297,18 @@ def prepare_data(metadata_df, reduced_omic_data_dict, split_func=None):
     # now we have a data set with 109 features for x = 0.05:
     # 104 omic data features, 5 metadata features
     # those 104 are the ones with the highest variance
-    # converting patient group to binary values:
-    combined_data["PatientGroup"] = np.where(combined_data["PatientGroup"] == "8", 0, 1)
-
-    # we would like to predict values for the feature 'Patient Group',
-    # to do so we seperate it from the rest of the data:
-    data_X = combined_data.drop(columns=['PatientGroup', 'CENTER'])
-    data_Y = combined_data['PatientGroup']
 
     # split the data
     if split_func is None:
+        # we would like to predict values for the feature 'Patient Group',
+        # to do so we seperate it from the rest of the data:
+        data_X = combined_data.drop(columns=['PatientGroup', 'CENTER'])
+        data_Y = combined_data['PatientGroup']
+        # converting patient group to binary values:
+        data_Y = np.where(data_Y == "8", 0, 1)
         train_x, test_x, train_y, test_y = train_test_split(data_X, data_Y, test_size=0.25, random_state=0)
     else:
-        train_x, test_x, train_y, test_y = split_func(data_X, data_Y)
+        train_x, test_x, train_y, test_y = split_func(combined_data)
     return test_x, test_y, train_x, train_y
 
 
