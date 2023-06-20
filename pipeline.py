@@ -302,14 +302,14 @@ def prepare_data(metadata_df, reduced_omic_data_dict, split_func=None):
 
     # we would like to predict values for the feature 'Patient Group',
     # to do so we seperate it from the rest of the data:
-    train_X = combined_data.drop(columns=['PatientGroup', 'CENTER'])
-    train_Y = combined_data['PatientGroup']
+    data_X = combined_data.drop(columns=['PatientGroup', 'CENTER'])
+    data_Y = combined_data['PatientGroup']
 
     # split the data
     if split_func is None:
-        train_x, test_x, train_y, test_y = train_test_split(train_X, train_Y, test_size=0.25, random_state=0)
+        train_x, test_x, train_y, test_y = train_test_split(data_X, data_Y, test_size=0.25, random_state=0)
     else:
-        train_x, test_x, train_y, test_y = split_func(train_X, train_Y)
+        train_x, test_x, train_y, test_y = split_func(data_X, data_Y)
     return test_x, test_y, train_x, train_y
 
 
