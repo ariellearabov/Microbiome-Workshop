@@ -117,24 +117,9 @@ def step_3_feature_selection(omic_data_dict, x=0.05):
 
 
 # step 4 - choosing a model (initially do RF - improve later)
-def step_4_model(metadata_df, reduced_omic_data_dict):
-    # first, we want to merge all data to one dataframe:
-    combined_data = combine_dfs(metadata_df, reduced_omic_data_dict)
-
-    # now we have a data set with 109 features for x = 0.05:
-    # 104 omic data features, 5 metadata features
-    # those 104 are the ones with the highest variance
-
-    # converting patient group to binary values:
-    combined_data["PatientGroup"] = np.where(combined_data["PatientGroup"] == "8", 0, 1)
-
-    # we would like to predict values for the feature 'Patient Group',
-    # to do so we seperate it from the rest of the data:
-    train_X = combined_data.drop(columns=['PatientGroup', 'CENTER'])
-    train_Y = combined_data['PatientGroup']
-
-    # randomly split the data
-    train_x, test_x, train_y, test_y = train_test_split(train_X, train_Y, test_size=0.25, random_state=0)
+def step_4_model(metadata_df, reduced_omic_data_dict, split_func):
+    # if no split_func is passed - split the data randomly:
+    test_x, test_y, train_x, train_y = prepare_data(metadata_df, reduced_omic_data_dict, split_func)
 
     # create an object of the RandomForestRegressor
     model_RFC = RandomForestClassifier()
@@ -146,11 +131,7 @@ def step_4_model(metadata_df, reduced_omic_data_dict):
     predict_prob_train = model_RFC.predict_proba(train_x)
     predict_prob_test = model_RFC.predict_proba(test_x)
 
-    # creating a df with the results
-    predict_train_df = create_results_df(train_y, predict_prob_train)
-    predict_test_df = create_results_df(test_y, predict_prob_test)
-
-    return predict_train_df, predict_test_df
+    return predict_prob_train, predict_prob_test, train_y, test_y
 
 
 #####################
@@ -309,23 +290,32 @@ def combine_dfs(first_dfs, dfs_dict):
     return curr_df
 
 
-def create_results_df(y, proba_predictions):
-    results_df = pd.DataFrame(y)
-    predict_probability_0 = []
-    predict_probability_1 = []
-    for prob in proba_predictions:
-        predict_probability_0.append(prob[0])
-        predict_probability_1.append(prob[1])
-    results_df["P(Patient Group = 0)"] = predict_probability_0
-    results_df["P(Patient Group = 1)"] = predict_probability_1
-    return results_df
+def prepare_data(metadata_df, reduced_omic_data_dict, split_func):
+    # first, we want to merge all data to one dataframe:
+    combined_data = combine_dfs(metadata_df, reduced_omic_data_dict)
+
+    # now we have a data set with 109 features for x = 0.05:
+    # 104 omic data features, 5 metadata features
+    # those 104 are the ones with the highest variance
+    # converting patient group to binary values:
+    combined_data["PatientGroup"] = np.where(combined_data["PatientGroup"] == "8", 0, 1)
+
+    # we would like to predict values for the feature 'Patient Group',
+    # to do so we seperate it from the rest of the data:
+    train_X = combined_data.drop(columns=['PatientGroup', 'CENTER'])
+    train_Y = combined_data['PatientGroup']
+
+    # split the data
+    train_x, test_x, train_y, test_y = split_func(train_X, train_Y, test_size=0.25, random_state=0)
+
+    return test_x, test_y, train_x, train_y
 
 
 #####################
 # section C:
 #####################
 
-def main():
+def main(split_func=train_test_split):
     # step 0 - reading raw data:
     dfs_tuple = step_0("data")
     dfs_lst_0 = dfs_tuple[0]
@@ -337,7 +327,7 @@ def main():
     # in omic data (metabolomic data) Nan was replaced with 0, columns with only the value 0 were removed
     dfs_step_1 = step_1_preprocessing(dfs_lst_0, dfs_dict_0)
     metadata = dfs_step_1[0]
-    kegg_names = dfs_step_1[1]
+    # kegg_names = dfs_step_1[1]
     full_omic_data_dict = dfs_step_1[2]  # contains both metagenomic data (w/o functional data) and metabolomic data
 
     # step 2 - missing values imputation:
@@ -349,11 +339,17 @@ def main():
     reduced_omic_dfs_dict = step_3_feature_selection(full_omic_data_dict)
 
     # step 4 - choosing a model:
-    predictions = step_4_model(metadata, reduced_omic_dfs_dict)
-    prediction_train_df = predictions[0]
-    prediction_test_df = predictions[1]
+    # if no split_func is passed to main() - step splits the data randomly
+    predictions = step_4_model(metadata, reduced_omic_dfs_dict, split_func)
 
-    return prediction_train_df, prediction_test_df
+    # predictions output is composed of:
+    # two-dimensional array of probabilities to be: class == 0, class == 1, and the true classifications
+    # predictions[0] = on train data
+    # predictions[1] = on test data
+    # predictions[2] = true classes for train data
+    # predictions[3] = true classes for test data
+
+    return predictions
 
 
 if __name__ == "__main__":
