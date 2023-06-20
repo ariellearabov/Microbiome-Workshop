@@ -117,7 +117,7 @@ def step_3_feature_selection(omic_data_dict, x=0.05):
 
 
 # step 4 - choosing a model (initially do RF - improve later)
-def step_4_model(metadata_df, reduced_omic_data_dict, split_func):
+def step_4_model(metadata_df, reduced_omic_data_dict, split_func=None):
     # if no split_func is passed - split the data randomly:
     test_x, test_y, train_x, train_y = prepare_data(metadata_df, reduced_omic_data_dict, split_func)
 
@@ -290,7 +290,7 @@ def combine_dfs(first_dfs, dfs_dict):
     return curr_df
 
 
-def prepare_data(metadata_df, reduced_omic_data_dict, split_func):
+def prepare_data(metadata_df, reduced_omic_data_dict, split_func=None):
     # first, we want to merge all data to one dataframe:
     combined_data = combine_dfs(metadata_df, reduced_omic_data_dict)
 
@@ -306,8 +306,10 @@ def prepare_data(metadata_df, reduced_omic_data_dict, split_func):
     train_Y = combined_data['PatientGroup']
 
     # split the data
-    train_x, test_x, train_y, test_y = split_func(train_X, train_Y, test_size=0.25, random_state=0)
-
+    if split_func is None:
+        train_x, test_x, train_y, test_y = train_test_split(train_X, train_Y, test_size=0.25, random_state=0)
+    else:
+        train_x, test_x, train_y, test_y = split_func(train_X, train_Y)
     return test_x, test_y, train_x, train_y
 
 
@@ -315,7 +317,7 @@ def prepare_data(metadata_df, reduced_omic_data_dict, split_func):
 # section C:
 #####################
 
-def main(split_func=train_test_split):
+def main(split_func=None):
     # step 0 - reading raw data:
     dfs_tuple = step_0("data")
     dfs_lst_0 = dfs_tuple[0]
