@@ -4,7 +4,7 @@ import random
 from matplotlib import pyplot as plt
 from sklearn import metrics
 import numpy as np
-import pipeline as pip
+import pipeline_step_2_opt as pip
 
 
 ##########################################################################################################
@@ -37,7 +37,7 @@ def ROC_AUC(true_classes, probs_array):
     plt.ylim([0, 1])
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
-    # plt.savefig('ROC_curve.png')
+    # plt.savefig('test_step_1_opt_NOT_rand.png')
     plt.show()
     return roc_auc
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     true_class_test = predictions[3]
 
     # plotting ROC-curve for train data:
-    ROC_AUC(true_class_train, probs_array_train)
+    # ROC_AUC(true_class_train, probs_array_train)
 
     # plotting ROC-curve for test data:
     ROC_AUC(true_class_test, probs_array_test)

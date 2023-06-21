@@ -8,6 +8,9 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 
+########################################################################################################################
+#                      this version fills missing values in metabolomic data using mean ---> Nan                       #
+########################################################################################################################
 
 # description:
 # section A - 5 functions for each step of the current pipeline
@@ -75,7 +78,8 @@ def step_1_preprocessing(full_dfs_lst, full_dfs_dict):
 
         # replacing each Nan value with 0:
         for feature in lst_of_features_with_Nan_values:
-            new_df[feature] = new_df[feature].fillna(0)
+            fill_val = new_df[feature].mean()
+            new_df[feature] = new_df[feature].fillna(fill_val)
 
         omic_data_dict[df_name] = new_df
 
