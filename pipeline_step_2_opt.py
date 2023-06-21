@@ -8,10 +8,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 
 
 ########################################################################################################################
-#            this version is built on pipeline_step_1_opt fills missing values in metadata using RF models             #
+#       this version (built on pipeline_step_1_opt) fills missing values in metadata using RFRegression models         #
 ########################################################################################################################
 
 # description:
@@ -119,7 +120,7 @@ def step_2_Gender_imprv(metadata_df, omic_data_dict):
     # filling SMOKE:
     metadata_df_with_Smoke = fill_imprv(metadata_df_with_Gender, omic_data_dict, 'SMOKE')
     # filling Age:
-    metadata_df = step_2_missing_values_imputation(metadata_df_with_Smoke)
+    metadata_df = fill_imprv(metadata_df_with_Smoke, omic_data_dict, 'AGE')
     return metadata_df
 
 
@@ -133,15 +134,20 @@ def fill_imprv(metadata_df, omic_data_dict, feature):
         omic_data_dict[df_name] = df
         reduce_features_in_df(omic_data_dict, df_name, reduced_omic_data_dict, 0.05, step_2=True)
     combined_data = combine_dfs(metadata_df, reduced_omic_data_dict)
-    test_x, test_y, train_x, train_y = split_for_step_2(combined_data, ind_to_train=ind_lst)
-    # create an object of the RandomForestRegressor
-    model_RFR = RandomForestRegressor()
-    # fit the model with the training data
-    model_RFR.fit(train_x, train_y)
-    # predict the target on train and test data
-    test_y_predict = model_RFR.predict(test_x)
-    metadata_df_with_Gender = fill_missing_values(test_y_predict, metadata_df, feature)
-    return metadata_df_with_Gender
+    test_x, test_y, train_x, train_y = split_for_step_2(combined_data, feature=feature, ind_to_train=ind_lst)
+    if feature == 'AGE':
+        model_LR = LinearRegression()
+        model_LR.fit(train_x, train_y)
+        test_y_predict = model_LR.predict(test_x)
+    else:
+        # create an object of the RandomForestRegressor
+        model_RFR = RandomForestRegressor()
+        # fit the model with the training data
+        model_RFR.fit(train_x, train_y)
+        # predict the target on train and test data
+        test_y_predict = model_RFR.predict(test_x)
+    metadata_with_feature = fill_missing_values(test_y_predict, metadata_df, feature)
+    return metadata_with_feature
 
 
 def split_for_step_2(combined_dfs, feature='Gender', ind_to_train=None):
