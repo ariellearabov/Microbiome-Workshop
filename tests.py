@@ -37,7 +37,7 @@ def ROC_AUC(true_classes, probs_array):
     plt.ylim([0, 1])
     plt.ylabel('True Positive Rate')
     plt.xlabel('False Positive Rate')
-    # plt.savefig('test_step_1_opt_NOT_rand.png')
+    # plt.savefig('test_step_2_opt_rand.png')
     plt.show()
     return roc_auc
 
