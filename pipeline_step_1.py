@@ -135,7 +135,7 @@ def step_4_model(metadata_df, reduced_omic_data_dict, split_func=None):
     predict_prob_train = model_RFC.predict_proba(train_x)
     predict_prob_test = model_RFC.predict_proba(test_x)
 
-    return predict_prob_train, predict_prob_test, train_y, test_y
+    return predict_prob_train, predict_prob_test, train_y, test_y, model_RFC.predict(test_x)
 
 
 #####################

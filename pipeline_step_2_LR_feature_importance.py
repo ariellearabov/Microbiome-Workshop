@@ -6,13 +6,13 @@ import numpy as np
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 
-
 ########################################################################################################################
-#       this version (built on pipeline_step_1_opt) fills missing values in metadata using RFRegression models         #
+#                                               IGNORE THIS VERSION                                                    #
+########################################################################################################################
+#   this version (built on pipeline_step_2_LR) uses feature importance from LR to choose the features to a RFR model   #
 ########################################################################################################################
 
 # description:
@@ -93,48 +93,43 @@ def step_1_preprocessing(full_dfs_lst, full_dfs_dict):
 
 
 # step 2 - missing values imputation:
-def step_2_missing_values_imputation(metadata_df):
-    # metadata_without_Denmark = metadata_df.drop(metadata_df.index[metadata_df['CENTER'] == 'Denmark'], inplace=False)
-    metadata_without_Nan = metadata_df.dropna()
-    # the metadata without the Nan values will be used to compute the value to impute for the missing values
-    features = list(metadata_without_Nan.columns)
-    for feature in features:
-        if feature == 'Gender':
-            gender_female_percentage = metadata_without_Nan[feature].mean()
-            values_to_fill = create_values_to_impute(gender_female_percentage, metadata_df[feature])
-            metadata_df = fill_missing_values(values_to_fill, metadata_df, feature)
-        elif feature == 'AGE':
-            age_mean = metadata_without_Nan[feature].mean()
-            metadata_df = fill_missing_values(age_mean, metadata_df, feature, ismean=True)
-        elif feature == 'SMOKE':
-            smokers_percentage = metadata_without_Nan[feature].mean()
-            values_to_fill = create_values_to_impute(smokers_percentage, metadata_df[feature])
-            metadata_df = fill_missing_values(values_to_fill, metadata_df, feature)
+def step_2_missing_values_imputation(metadata_df, omic_data_dict):
 
-    return metadata_df
-
-
-def step_2_Gender_imprv(metadata_df, omic_data_dict):
     # filling Gender:
-    metadata_df_with_Gender = fill_imprv(metadata_df, omic_data_dict, 'Gender')
+    metadata_Gender = fill_feature(metadata_df, omic_data_dict, 'Gender')
+    full_metadata_df = fill_missing_values(metadata_Gender, metadata_df, 'Gender')
+
     # filling SMOKE:
-    metadata_df_with_Smoke = fill_imprv(metadata_df_with_Gender, omic_data_dict, 'SMOKE')
+    metadata_Smoke = fill_feature(metadata_df, omic_data_dict, 'SMOKE')
+    full_metadata_df = fill_missing_values(metadata_Smoke, full_metadata_df, 'SMOKE')
+
     # filling Age:
-    metadata_df = fill_imprv(metadata_df_with_Smoke, omic_data_dict, 'AGE')
-    return metadata_df
+    metadata_Age = fill_feature(metadata_df, omic_data_dict, 'AGE')
+    full_metadata_df = fill_missing_values(metadata_Age, full_metadata_df, 'AGE')
+    return full_metadata_df
 
 
-def fill_imprv(metadata_df, omic_data_dict, feature):
-    omic_df_names = list(omic_data_dict.keys())
-    reduced_omic_data_dict = {}
+def fill_feature(metadata_df, omic_data_dict, feature):
     metadata_without_Nan = metadata_df.dropna()
     ind_lst = metadata_without_Nan.index
-    for df_name in omic_df_names:
-        df = omic_data_dict.get(df_name)
-        omic_data_dict[df_name] = df
-        reduce_features_in_df(omic_data_dict, df_name, reduced_omic_data_dict, 0.05, step_2=True)
-    combined_data = combine_dfs(metadata_df, reduced_omic_data_dict)
+    combined_data = combine_dfs(metadata_df, omic_data_dict)
     test_x, test_y, train_x, train_y = split_for_step_2(combined_data, feature=feature, ind_to_train=ind_lst)
+    model_LR = LinearRegression()
+    model_LR.fit(train_x, train_y)
+    # get list of features:
+    features = list(train_x.columns)
+    # get importance
+    importance = model_LR.coef_
+    # summarize feature importance
+    feature_importance_lst = []
+    for feature_i, score in enumerate(importance):
+        feature_importance_lst.append((score, feature_i))
+    total_features = len(feature_importance_lst)
+    feature_importance_lst.sort()
+    ind_of_features_to_drop = [tup[1] for tup in feature_importance_lst][0:total_features - 104]
+    labels = [features[ind] for ind in ind_of_features_to_drop]
+    train_x = train_x.drop(columns=labels)
+    test_x = test_x.drop(columns=labels)
     if feature == 'AGE':
         model_LR = LinearRegression()
         model_LR.fit(train_x, train_y)
@@ -146,8 +141,8 @@ def fill_imprv(metadata_df, omic_data_dict, feature):
         model_RFR.fit(train_x, train_y)
         # predict the target on train and test data
         test_y_predict = model_RFR.predict(test_x)
-    metadata_with_feature = fill_missing_values(test_y_predict, metadata_df, feature)
-    return metadata_with_feature
+
+    return test_y_predict
 
 
 def split_for_step_2(combined_dfs, feature='Gender', ind_to_train=None):
@@ -186,7 +181,7 @@ def step_4_model(metadata_df, reduced_omic_data_dict, split_func=None):
     predict_prob_train = model_RFC.predict_proba(train_x)
     predict_prob_test = model_RFC.predict_proba(test_x)
 
-    return predict_prob_train, predict_prob_test, train_y, test_y
+    return predict_prob_train, predict_prob_test, train_y, test_y, model_RFC.predict(test_x)
 
 
 #####################
@@ -320,8 +315,21 @@ def fill_missing_values(values_to_fill, full_df, feature, ismean=False):
     return full_df
 
 
+def select_features_for_step_2(combined_dfs, x):
+    curr_omic_df = combined_dfs
+    var_curr_df = curr_omic_df.var()
+    sorted_var_df = var_curr_df.sort_values()
+    num_of_features = len(list(curr_omic_df.columns))
+    num_of_features_to_keep = math.floor(num_of_features * x)
+    features = list(sorted_var_df.index)
+    end = num_of_features - num_of_features_to_keep
+    features_to_drop = features[0:end]
+    reduced_df = curr_omic_df.drop(labels=features_to_drop, axis=1)
+    return reduced_df
+
+
 # step 3:
-def reduce_features_in_df(omic_data_dict, df_name, reduced_omic_data_dict, x, step_2=False):
+def reduce_features_in_df(omic_data_dict, df_name, reduced_omic_data_dict, x):
     curr_omic_df = omic_data_dict.get(df_name)
     var_curr_df = curr_omic_df.var()
     sorted_var_df = var_curr_df.sort_values()
@@ -329,22 +337,24 @@ def reduce_features_in_df(omic_data_dict, df_name, reduced_omic_data_dict, x, st
     num_of_features_to_keep = math.floor(num_of_features * x)
     num_of_features_to_keep += 2
     features = list(sorted_var_df.index)
-    if step_2:
-        end = num_of_features - 2 * num_of_features_to_keep
-        start = num_of_features - num_of_features_to_keep
-        features_to_drop = features[0:end] + features[start:]
-    else:
-        end = num_of_features - num_of_features_to_keep
-        features_to_drop = features[0:end]
+    end = num_of_features - num_of_features_to_keep
+    features_to_drop = features[0:end]
     reduced_df = curr_omic_df.drop(labels=features_to_drop, axis=1)
     reduced_omic_data_dict[df_name] = reduced_df
 
 
 # step 4:
-def combine_dfs(first_dfs, dfs_dict):
+def combine_dfs(first_dfs, dfs_dict, no_first=False):
     dfs_names = list(dfs_dict.keys())
-    curr_df = first_dfs
+    if no_first:
+        curr_df = dfs_dict.get(dfs_names[0])
+    else:
+        curr_df = first_dfs
+    cnt = 0
     for df_name in dfs_names:
+        if cnt == 0 and no_first:
+            cnt += 1
+            continue
         df = dfs_dict.get(df_name)
         curr_df = pd.concat([curr_df, df], ignore_index=False, axis=1)
     return curr_df
@@ -395,7 +405,7 @@ def main(split_func=None):
     # step 2 - missing values imputation:
     # the imputation is only for the metadata
     # this is an intial imputation using the mean, needs to be improved using the taxonomical data
-    metadata = step_2_Gender_imprv(metadata, full_omic_data_dict)
+    metadata = step_2_missing_values_imputation(metadata, full_omic_data_dict)
 
     # step 3 - feature selection:
     reduced_omic_dfs_dict = step_3_feature_selection(full_omic_data_dict)

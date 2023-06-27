@@ -7,7 +7,13 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression
 
+
+########################################################################################################################
+#       this version (built on pipeline_step_1) fills missing values in metadata using RFRegression and LR models  #
+########################################################################################################################
 
 # description:
 # section A - 5 functions for each step of the current pipeline
@@ -75,7 +81,8 @@ def step_1_preprocessing(full_dfs_lst, full_dfs_dict):
 
         # replacing each Nan value with 0:
         for feature in lst_of_features_with_Nan_values:
-            new_df[feature] = new_df[feature].fillna(0)
+            fill_val = new_df[feature].mean()
+            new_df[feature] = new_df[feature].fillna(fill_val)
 
         omic_data_dict[df_name] = new_df
 
@@ -85,26 +92,49 @@ def step_1_preprocessing(full_dfs_lst, full_dfs_dict):
     return metadata_df, kegg_names_df, omic_data_dict
 
 
-# step 2 - missing values imputation: (intially impute the average - improve later)
-def step_2_missing_values_imputation(metadata_df):
-    # metadata_without_Denmark = metadata_df.drop(metadata_df.index[metadata_df['CENTER'] == 'Denmark'], inplace=False)
-    metadata_without_Nan = metadata_df.dropna()
-    # the metadata without the Nan values will be used to compute the value to impute for the missing values
-    features = list(metadata_without_Nan.columns)
-    for feature in features:
-        if feature == 'Gender':
-            gender_female_percentage = metadata_without_Nan[feature].mean()
-            values_to_fill = create_values_to_impute(gender_female_percentage, metadata_df[feature])
-            metadata_df = fill_missing_values(values_to_fill, metadata_df, feature)
-        elif feature == 'AGE':
-            age_mean = metadata_without_Nan[feature].mean()
-            metadata_df = fill_missing_values(age_mean, metadata_df, feature, ismean=True)
-        elif feature == 'SMOKE':
-            smokers_percentage = metadata_without_Nan[feature].mean()
-            values_to_fill = create_values_to_impute(smokers_percentage, metadata_df[feature])
-            metadata_df = fill_missing_values(values_to_fill, metadata_df, feature)
-
+# step 2 - missing values imputation:
+def step_2_missing_values_imputation(metadata_df, omic_data_dict):
+    # filling Gender:
+    metadata_df_with_Gender = fill_feature(metadata_df, omic_data_dict, 'Gender')
+    # filling SMOKE:
+    metadata_df_with_Smoke = fill_feature(metadata_df_with_Gender, omic_data_dict, 'SMOKE')
+    # filling Age:
+    metadata_df = fill_feature(metadata_df_with_Smoke, omic_data_dict, 'AGE')
     return metadata_df
+
+
+def fill_feature(metadata_df, omic_data_dict, feature):
+    metadata_without_Nan = metadata_df.dropna()
+    ind_lst = metadata_without_Nan.index
+    combined_data = combine_dfs(metadata_df, omic_data_dict, no_first=True)
+    reduced_data = select_features_for_step_2(combined_data, 0.05)
+    reduced_data = pd.concat([metadata_df, reduced_data], ignore_index=False, axis=1)
+    test_x, test_y, train_x, train_y = split_for_step_2(reduced_data, feature=feature, ind_to_train=ind_lst)
+    if feature == 'AGE':
+        model_LR = LinearRegression()
+        model_LR.fit(train_x, train_y)
+        test_y_predict = model_LR.predict(test_x)
+    else:
+        # create an object of the RandomForestRegressor
+        model_RFR = RandomForestRegressor()
+        # fit the model with the training data
+        model_RFR.fit(train_x, train_y)
+        # predict the target on train and test data
+        test_y_predict = model_RFR.predict(test_x)
+    metadata_with_feature = fill_missing_values(test_y_predict, metadata_df, feature)
+    return metadata_with_feature
+
+
+def split_for_step_2(combined_dfs, feature='Gender', ind_to_train=None):
+    test_data = combined_dfs.drop(labels=ind_to_train, axis=0)
+    ind_to_test = test_data.index
+    train_data = combined_dfs.drop(labels=ind_to_test, axis=0)
+    test_x = test_data.drop(columns=['CENTER', 'PatientGroup', 'AGE', 'SMOKE', 'Gender'])
+    train_x = train_data.drop(columns=['CENTER', 'PatientGroup', 'AGE', 'SMOKE', 'Gender'])
+    test_y = test_data[feature]
+    train_y = train_data[feature]
+
+    return test_x, test_y, train_x, train_y
 
 
 # step 3 - feature selection (intially with default selection to see if works - improve later)
@@ -265,6 +295,19 @@ def fill_missing_values(values_to_fill, full_df, feature, ismean=False):
     return full_df
 
 
+def select_features_for_step_2(combined_dfs, x):
+    curr_omic_df = combined_dfs
+    var_curr_df = curr_omic_df.var()
+    sorted_var_df = var_curr_df.sort_values()
+    num_of_features = len(list(curr_omic_df.columns))
+    num_of_features_to_keep = math.floor(num_of_features * x)
+    features = list(sorted_var_df.index)
+    end = num_of_features - num_of_features_to_keep
+    features_to_drop = features[0:end]
+    reduced_df = curr_omic_df.drop(labels=features_to_drop, axis=1)
+    return reduced_df
+
+
 # step 3:
 def reduce_features_in_df(omic_data_dict, df_name, reduced_omic_data_dict, x):
     curr_omic_df = omic_data_dict.get(df_name)
@@ -281,16 +324,23 @@ def reduce_features_in_df(omic_data_dict, df_name, reduced_omic_data_dict, x):
 
 
 # step 4:
-def combine_dfs(first_dfs, dfs_dict):
+def combine_dfs(first_dfs, dfs_dict, no_first=False):
     dfs_names = list(dfs_dict.keys())
-    curr_df = first_dfs
+    if no_first:
+        curr_df = dfs_dict.get(dfs_names[0])
+    else:
+        curr_df = first_dfs
+    cnt = 0
     for df_name in dfs_names:
+        if cnt == 0 and no_first:
+            cnt += 1
+            continue
         df = dfs_dict.get(df_name)
         curr_df = pd.concat([curr_df, df], ignore_index=False, axis=1)
     return curr_df
 
 
-def prepare_data(metadata_df, reduced_omic_data_dict, split_func=None):
+def prepare_data(metadata_df, reduced_omic_data_dict, split_func=None, feature='PatientGroup'):
     # first, we want to merge all data to one dataframe:
     combined_data = combine_dfs(metadata_df, reduced_omic_data_dict)
 
@@ -302,10 +352,11 @@ def prepare_data(metadata_df, reduced_omic_data_dict, split_func=None):
     if split_func is None:
         # we would like to predict values for the feature 'Patient Group',
         # to do so we seperate it from the rest of the data:
-        data_X = combined_data.drop(columns=['PatientGroup', 'CENTER'])
-        data_Y = combined_data['PatientGroup']
-        # converting patient group to binary values:
-        data_Y = np.where(data_Y == "8", 0, 1)
+        data_X = combined_data.drop(columns=[feature, 'CENTER'])
+        data_Y = combined_data[feature]
+        if feature == 'PatientGroup':
+            # converting patient group to binary values:
+            data_Y = np.where(data_Y == "8", 0, 1)
         train_x, test_x, train_y, test_y = train_test_split(data_X, data_Y, test_size=0.3, random_state=0)
     else:
         train_x, test_x, train_y, test_y = split_func(combined_data)
@@ -334,7 +385,7 @@ def main(split_func=None):
     # step 2 - missing values imputation:
     # the imputation is only for the metadata
     # this is an intial imputation using the mean, needs to be improved using the taxonomical data
-    metadata = step_2_missing_values_imputation(metadata)
+    metadata = step_2_missing_values_imputation(metadata, full_omic_data_dict)
 
     # step 3 - feature selection:
     reduced_omic_dfs_dict = step_3_feature_selection(full_omic_data_dict)
@@ -354,4 +405,5 @@ def main(split_func=None):
 
 
 if __name__ == "__main__":
+    # pd.set_option('display.max_rows', None)
     main()
