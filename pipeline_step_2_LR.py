@@ -11,7 +11,7 @@ from sklearn.linear_model import LinearRegression
 
 
 ########################################################################################################################
-#       this version (built on pipeline_step_2_opt) fills missing values in metadata only with Linear Regression       #
+#       this version (built on pipeline_step_2) fills missing values in metadata only with Linear Regression       #
 ########################################################################################################################
 
 # description:
@@ -348,7 +348,7 @@ def prepare_data(metadata_df, reduced_omic_data_dict, split_func=None, feature='
         if feature == 'PatientGroup':
             # converting patient group to binary values:
             data_Y = np.where(data_Y == "8", 0, 1)
-        train_x, test_x, train_y, test_y = train_test_split(data_X, data_Y, test_size=0.3, random_state=0)
+        train_x, test_x, train_y, test_y = train_test_split(data_X, data_Y, test_size=0.2, random_state=0)
     else:
         train_x, test_x, train_y, test_y = split_func(combined_data)
     return test_x, test_y, train_x, train_y

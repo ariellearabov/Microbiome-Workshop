@@ -7,7 +7,7 @@ from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import auc
 from sklearn.metrics import f1_score
 
-import pipeline as pip
+import pipeline_step_1 as pip
 
 
 ##########################################################################################################
@@ -66,7 +66,7 @@ def precision_recall(true_classes, pred_classes, probs_array):
     plt.show()
 
 
-def split_specific_patient_group(df, group_out="1"):
+def split_specific_patient_group(df, group_out="6"):
     """
     :param df: combined dataframes with "Patient Group" feature
     :param group_out: patient group to leave out of the train dataset
@@ -119,8 +119,8 @@ def split_specific_patient_group(df, group_out="1"):
 
 
 if __name__ == "__main__":
-    # predictions = run_model()
-    predictions = run_model(specific_split=True, split_func=split_specific_patient_group)
+    predictions = run_model()
+    # predictions = run_model(specific_split=True, split_func=split_specific_patient_group)
 
     probs_array_train = predictions[0]
     probs_array_test = predictions[1]
